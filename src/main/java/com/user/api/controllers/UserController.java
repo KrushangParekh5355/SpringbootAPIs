@@ -4,13 +4,16 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.user.api.entity.User;
@@ -33,9 +36,9 @@ public class UserController {
 	}
 	
 	@PostMapping("/register")
-	public ResponseEntity<String> registerUser(@RequestBody User user){
+	public ResponseEntity<String> registerUser(@RequestBody User user, @RequestParam(defaultValue = "false") boolean isAdmin){
 		try {
-			userService.registeUser(user);
+			userService.registerUser(user, isAdmin);
 			log.info("Created new users");
 			return ResponseEntity.ok("User is registered successfully!");
 		} catch(Exception e) {
@@ -43,6 +46,7 @@ public class UserController {
 		}
 	}
 	
+	@PreAuthorize("hasrole('ADMIN')")
 	@PutMapping("/update/{id}")
 	public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser){
 		try {
@@ -54,9 +58,7 @@ public class UserController {
 		}
 	}
 	
-	
-	
-	
+	@PreAuthorize("hasrole('ADMIN')")
 	@DeleteMapping("delete/{id}")
 	public ResponseEntity<String> deleteUser(@PathVariable Long id){
 		try {
@@ -66,6 +68,22 @@ public class UserController {
 		} catch (RuntimeException e) {
 			return ResponseEntity.badRequest().body(e.getMessage());
 		}
+	}
+	
+	@PreAuthorize("hasrole('ADMIN')")
+	@DeleteMapping("deleteAll")
+	 public ResponseEntity<String> deleteAllUsers() {
+        try {
+            userService.deleteAllUsers();
+            return ResponseEntity.ok("All users deleted");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error deleting users: " + e.getMessage());
+        }
+    } 
+	
+	@PostMapping("/login")
+	public User login(@RequestBody User loginRequest) {
+		return userService.loginUser(loginRequest.getEmail(), loginRequest.getPassword());
 	}
 	
 	

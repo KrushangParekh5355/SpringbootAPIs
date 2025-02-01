@@ -1,9 +1,14 @@
 package com.user.api.service;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 //import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,16 +25,36 @@ public class UserService {
 	@Autowired
 	private UserRepository userRepository;
 	
+	@Autowired
+	private PasswordEncoder passwordEncoder;
+	
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+	
+	//For password encryption
+	public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+		this.userRepository = userRepository;
+		this.passwordEncoder = passwordEncoder;
+	}
+	
 	//Getting list of all users
 	public List<User> getAllUsers(){
 		return userRepository.findAll();
 	}
 	
-	
 	//Adding user
 	@Transactional
-	public User registeUser(User user) {
+	public User registerUser(User user, boolean isAdmin) {
 		Optional<User> existingUser = userRepository.findByEmail(user.getEmail());
+		user.setPassword(passwordEncoder.encode(user.getPassword())); //Password encryption
+			
+		Set<String> roles = new HashSet<>();
+		if(isAdmin) {
+			roles.add("ADMIN");
+		}else {
+			roles.add("USER");
+		}
+		user.setRoles(roles);
 		
 		if(existingUser.isPresent()) {
 			throw new RuntimeException("Email is already registered!");
@@ -66,7 +91,24 @@ public class UserService {
 		}
 	}
 	
+	//Deleting all users
+	public void deleteAllUsers() {
+		userRepository.deleteAll();
+		jdbcTemplate.execute("ALTER TABLE users AUTO_INCREMENT = 1");
+	}
 	
+	//Login user 
+	public User loginUser(String email, String password) {
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new RuntimeException("User not found!"));
+
+		if(!passwordEncoder.matches(password, user.getPassword())) {
+			throw new RuntimeException("Invalid credentials");
+		}
+		
+		log.info("User Logged in successfully!");
+		return user;
+	}
 	
 	
 	
